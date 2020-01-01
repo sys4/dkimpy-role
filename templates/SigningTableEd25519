@@ -1,0 +1,14 @@
+# {{ ansible_managed }}
+# senderdomain    identifier
+
+{% for key, value in ed25519_keys.items() %}
+{% if value.enabled == True %}
+{% if value.sender | regex_search('@') %}
+{{ value.sender }}    {{ key }}
+{% else %}
+*@{{ value.sender }}    {{ key }}
+{% endif %}
+{% endif %}
+{% endfor %}
+
+# vim: set ft=jinja:

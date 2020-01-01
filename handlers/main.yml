@@ -1,0 +1,4 @@
+- name: restart dkimpy-milter
+  service:
+    name: dkimpy-milter
+    state: restarted

@@ -1,0 +1,276 @@
+= dkimpy-role: ansible role for dkimpy-milter
+ifdef::env-github[]
+:tip-caption: :bulb:
+:note-caption: :information_source:
+:important-caption: :heavy_exclamation_mark:
+:caution-caption: :fire:
+:warning-caption: :warning:
+endif::[]
+:source-highlighter: rouge
+:toc:
+:toc-placement!:
+:sectanchors:
+
+This ansible role installs and configures
+https://launchpad.net/dkimpy-milter[dkimpy-milter]. It provides means to create
+and use `rsa` and `ed25519` type DKIM keys.
+
+toc::[]
+
+== Installation
+
+You can either simply download this project as an archive and place it in your
+projects `roles/` subdirectory or you add it as `git submodule` to your project
+– in case your project is under `git` control. The latter has the benefit that
+you can simply use git to update changes from this project.
+
+To add this ansible role as independent submodule to your "superproject" go to
+your roles subdirectory and issue the following command:
+
+[source,terminal]
+----
+$ git submodule add https://github.com/sys4/dkimpy-role
+----
+
+After that you should be able to use the role in your project by adding it to
+your playbook like this:
+
+[source,yaml]
+----
+- hosts: mail
+  gather_facts: true
+  roles:
+      - { role: dkimpy-role, tags: ['dkim'] }
+----
+
+Assuming your playbook would be `mail.yml` you can use the `dkimpy-role` using
+the `ansible-playbook` command like this:
+
+[source,terminal]
+----
+$ ansible-playbook -t dkim mail.yml
+----
+
+Executed without any configuration that specifies `rsa` or `ed25519` type DKIM
+keys the role will install the `dkimpy-milter` via `pip`, create a user and
+group `dkimpy-milter`, register and enable the service and create the necessary
+directories to hold `dkimpy-milter` tables, key files and files containing the
+values that need to be added to DNS ressource records.
+
+[source,terminal]
+----
+# tree -ugp /usr/local/etc/
+/usr/local/etc/
+├── [drwxr-x--- dkimpy-milter dkimpy-milter]  dkim                 <1>
+│   ├── [drwxr-x--- dkimpy-milter dkimpy-milter]  keys             <2>
+│   ├── [-rw-r----- dkimpy-milter dkimpy-milter]  KeyTable
+│   ├── [-rw-r----- dkimpy-milter dkimpy-milter]  KeyTableEd25519
+│   ├── [-rw-r----- dkimpy-milter dkimpy-milter]  SigningTable
+│   └── [-rw-r----- dkimpy-milter dkimpy-milter]  SigningTableEd25519
+└── [-rw-r----- dkimpy-milter dkimpy-milter]  dkimpy-milter.conf   <3>
+----
+
+<1> All tables, keys and dns-files are located below `/usr/local/etc/dkim`.
+    located in `/usr/local/etc/`.
+<2> Once you've configured the `dkimpy-role` to create keys, they will be stored
+    in this directory.
+<3> The dkimpy-milter systemd unit file expects `dkimpy-milter.conf` to be
+    located in `/usr/local/etc/`.
+
+
+== Key management
+
+`dkimpy-role` implements a simple key management process. It allows to specify
+an arbitrary number of `rsa` and/or `ed25519` keys. Once specified `dkimpy-role`
+will create the `\*.key`- and corresponding `*.dns`-files in
+`/usr/local/etc/dkim/keys` next time you play the role.
+
+In order to specify keys `dkimpy-role` should create for you add the following
+dictionaries to your hosts vars file. Following the previous example for a
+playbook `mail.yml` a corresponding `ansible/host_vars/mail.yml` would specify
+DKIM keys to create and enable like this:
+
+[source,yml]
+----
+rsa_keys:                               <1>
+  preskey:
+    sender: president@example.com
+    enabled: yes
+    selector: 201912
+  comkey:
+    sender: example.com
+    enabled: yes
+    selector: 201912
+  netkey:
+    sender: example.net
+    enabled: yes
+    selector: 201912
+  netkey2:                              <2>
+    sender: example.net
+    enabled: no                         <3>
+    selector: 202001
+ed25519_keys:                           <4>
+  preskey:
+    sender: president@example.com
+    enabled: yes
+    selector: 201912
+  comkey:
+    sender: example.com
+    enabled: yes
+    selector: 201912
+  netkey:
+    sender: example.net
+    enabled: yes
+    selector: 201912
+  netkey2:
+    sender: example.net
+    enabled: no
+    selector: 202001
+----
+
+<1> The dictionary `rsa_keys` controls `rsa` type DKIM keys
+
+<2> Use a unique dictionary key (here: `netkey2` as a successor of `netkey`) for
+    your DKIM keys. They must be unique or only the last one will be used.
+
+<3> A DKIM key set to `enabled: no` will be created, but not added to any of the
+    `Signing`-Tables or `KeyTable`-Tables (see also: <<_dkim_rollout_process>>).
+
+<4> The dictionary `rsa_keys` controls `rsa` type DKIM keys.
+
+Here's what the options of a DKIM key control:
+
+sender::
+    The `sender` option assigns the key to a specific sender or senderdomain.
+enabled::
+    The `enabled` option controls if a key will be used to sign a message that
+    matches the `sender`.
+selector::
+    The `selector` option controls the selector that will be added to the DKIM
+    header, which will be used to identify the corresponding DKIM pubkey in the
+    senderdomains DNS.
+
+Once you've created your DKIM key dictionary/dictionaries you need to play the
+role to have `dkimpy-role` create the specified keys. After that you will find
+them, along with their corresponding `*.dns`-files in
+`/usr/local/etc/dkim/keys`:
+
+[source,terminal]
+----
+# tree -ugp /usr/local/etc/
+/usr/local/etc/
+├── [drwxr-x--- dkimpy-milter dkimpy-milter]  dkim
+│   ├── [drwxr-x--- dkimpy-milter dkimpy-milter]  keys
+│   │   ├── [-rw-r--r-- dkimpy-milter dkimpy-milter]  201912.ed25519.example.com.dns
+│   │   ├── [-rw-r--r-- dkimpy-milter dkimpy-milter]  201912.ed25519.example.com.key
+│   │   ├── [-rw-r--r-- dkimpy-milter dkimpy-milter]  201912.ed25519.example.net.dns
+│   │   ├── [-rw-r--r-- dkimpy-milter dkimpy-milter]  201912.ed25519.example.net.key
+│   │   ├── [-rw-r--r-- dkimpy-milter dkimpy-milter]  201912.ed25519.president@example.com.dns
+│   │   ├── [-rw-r--r-- dkimpy-milter dkimpy-milter]  201912.ed25519.president@example.com.key
+│   │   ├── [-rw-r--r-- dkimpy-milter dkimpy-milter]  201912.rsa.example.com.dns
+│   │   ├── [-rw------- dkimpy-milter dkimpy-milter]  201912.rsa.example.com.key
+│   │   ├── [-rw-r--r-- dkimpy-milter dkimpy-milter]  201912.rsa.example.net.dns
+│   │   ├── [-rw------- dkimpy-milter dkimpy-milter]  201912.rsa.example.net.key
+│   │   ├── [-rw-r--r-- dkimpy-milter dkimpy-milter]  201912.rsa.president@example.com.dns
+│   │   ├── [-rw------- dkimpy-milter dkimpy-milter]  201912.rsa.president@example.com.key
+│   │   ├── [-rw-r--r-- dkimpy-milter dkimpy-milter]  202001.ed25519.example.net.dns
+│   │   ├── [-rw-r--r-- dkimpy-milter dkimpy-milter]  202001.ed25519.example.net.key
+│   │   ├── [-rw-r--r-- dkimpy-milter dkimpy-milter]  202001.rsa.example.net.dns
+│   │   ├── [-rw------- dkimpy-milter dkimpy-milter]  202001.rsa.example.net.key
+│   ├── [-rw-r----- dkimpy-milter dkimpy-milter]  KeyTable
+│   ├── [-rw-r----- dkimpy-milter dkimpy-milter]  KeyTableEd25519
+│   ├── [-rw-r----- dkimpy-milter dkimpy-milter]  SigningTable
+│   └── [-rw-r----- dkimpy-milter dkimpy-milter]  SigningTableEd25519
+└── [-rw-r----- dkimpy-milter dkimpy-milter]  dkimpy-milter.conf
+----
+
+The `SigningTable` and the `KeyTable` will map the sender or senderdomains
+accordingly. The `SigningTable` maps senders or senderdomains to specific
+identifiers:
+
+.SigningTable
+----
+# Ansible managed
+# senderdomain    identifier
+
+president@example.com    preskey
+*@example.com    comkey
+*@example.net    netkey
+
+# vim: set ft=jinja:
+----
+
+The identifier in the `KeyTable` specifies the senderdomain, the selector and
+the path to the key that should be used:
+
+.Keytable
+----
+# Ansible managed
+# identifier senderdomain:selector:/path/to/signing.key
+
+preskey    example.com:201912:/usr/local/etc/dkim/keys/201912.rsa.president@example.com.key
+comkey    example.com:201912:/usr/local/etc/dkim/keys/201912.rsa.example.com.key
+netkey    example.net:201912:/usr/local/etc/dkim/keys/201912.rsa.example.net.key
+
+# vim: set ft=jinja:
+----
+
+Also in `/usr/local/etc/dkim/keys` you will find files that end with a `dns`
+suffix. These contain the values you will need to add to the senderdomains DNS
+within the domains subdomain `_domainkey`:
+
+[source,raw]
+----
+v=DKIM1; k=ed25519; p=TDvnokQfN5DYwMKRJgZS25rS4zoXkx7qnlUK26bFgi4=
+----
+
+[NOTE]
+====
+Maintaining the DNS entries is out of scope of this role. Consult your DNS
+hosters manual or use an additional ansible role to add the entries to the
+domains DNS.
+====
+
+
+== DKIM rollout process
+
+. Specify the key(s) in your hosts var file but don't enable them.
+. Let `dkimpy-role` create the keys.
+. Add the values from the files ending on `dns` to the domains DNS.
+. Verify the DKIM pubkeys exist in the domains DNS.
+. Set the key to `enabled: yes` once you want to use them.
+
+[IMPORTANT]
+====
+Make sure only one key for a sender or senderdomain is enabled at a time.
+====
+
+
+== Customization
+
+This ansible dkimpy-milter role comes with defaults. You can find them in
+`dkimpy-role/defaults/main.yml`:
+
+[source,yaml]
+----
+dkimpy_user: dkimpy-milter
+dkimpy_group: dkimpy-milter
+dkimpy_conf_dir: /usr/local/etc/dkim
+dkimpy_key_store: "{{ dkimpy_conf_dir }}/keys"
+rsa_key_file_name: "{{ item.value.selector }}.rsa.{{ item.value.sender }}.key"
+ed25519_key_file_name: "{{ item.value.selector }}.ed25519.{{ item.value.sender }}.key"
+dkimpy_mode: sv
+dkimpy_canonicalization: relaxed/simple
+dkimpy_key_table: "{{ dkimpy_conf_dir }}/KeyTable"
+dkimpy_key_ed25519_table: "{{ dkimpy_conf_dir }}/KeyTableEd25519"
+dkimpy_signing_table: "{{ dkimpy_conf_dir }}/SigningTable"
+dkimpy_signing_ed25519_table: "{{ dkimpy_conf_dir }}/SigningTableEd25519"
+----
+
+You can override these defaults by adding the option you want to change to your
+hosts vars file along with a value that suits your needs.
+
+
+== Integration
+
+// TODO
