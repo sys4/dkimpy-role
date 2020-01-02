@@ -77,15 +77,6 @@
     mode: "0640"
   notify: restart dkimpy-milter
 
-- name: Deploy SigningTableEd25519
-  template:
-    src: SigningTableEd25519
-    dest: "{{ dkimpy_signing_ed25519_table }}"
-    owner: "{{ dkimpy_user }}"
-    group: "{{ dkimpy_group }}"
-    mode: "0640"
-  notify: restart dkimpy-milter
-
 - name: Enable dkimpy-milter service
   service:
     name: dkimpy-milter

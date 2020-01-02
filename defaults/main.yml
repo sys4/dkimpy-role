@@ -9,4 +9,3 @@ dkimpy_canonicalization: relaxed/simple
 dkimpy_key_table: "{{ dkimpy_conf_dir }}/KeyTable"
 dkimpy_key_ed25519_table: "{{ dkimpy_conf_dir }}/KeyTableEd25519"
 dkimpy_signing_table: "{{ dkimpy_conf_dir }}/SigningTable"
-dkimpy_signing_ed25519_table: "{{ dkimpy_conf_dir }}/SigningTableEd25519"
