@@ -262,6 +262,9 @@ dkimpy_canonicalization: relaxed/simple
 dkimpy_key_table: "{{ dkimpy_conf_dir }}/KeyTable"
 dkimpy_key_ed25519_table: "{{ dkimpy_conf_dir }}/KeyTableEd25519"
 dkimpy_signing_table: "{{ dkimpy_conf_dir }}/SigningTable"
+dkimpy_socket: local
+dkimpy_postfix_socket_directory: /var/spool/postfix/dkimpy-milter
+postfix_group: postfix
 ----
 
 You can override these defaults by adding the option you want to change to your
@@ -270,4 +273,83 @@ hosts vars file along with a value that suits your needs.
 
 == Integration
 
-// TODO
+By default `dkimpy-milter` establishes a local UNIX socket located at
+`/run/dkimpy-milter/dkimpy-milter.sock`. To override this default set
+`dkimpy_socket` in the hosts vars file.
+
+[source,yaml]
+----
+dkimpy_socket: local_postfix
+----
+
+Available options for `dkimpy_socket` are:
+
+inet::
+    Setting `dkimpy_socket: inet` will configure `dkimpy-milter` to create a TCP
+    socket that listens on port 8892 on the IPv4 localhost interface.
+local (default)::
+    Setting `dkimpy_socket: local` will configure `dkimpy-milter` to create a
+    local UNIX socket located at `/run/dkimpy-milter/dkimpy-milter.sock`.
+local_postfix::
+    Setting `dkimpy_socket: local_postfix` will configure `dkimpy-milter` to
+    create a local UNIX socket located at
+    `/var/spool/postfix/dkimpy-milter/dkimpy-milter.sock`.
+
+
+=== Postfix MTA
+
+Configuring `dkimpy-milter` to work with Postfix requires to modify
+`dkimpy-milter` and Postfix configuration. Set `dkimpy_socket: local_postfix` in
+the hosts vars file to prepare `dkimpy-milter` for integration with the Postfix
+MTA.
+
+[source,yaml]
+----
+dkimpy_socket: local_postfix
+----
+
+Setting this option causes this ansible role to change how `dkimpy-milter`
+integrates as follows:
+
+- The role will create a subdirectory `dkimpy-milter` in Postfix' main instances
+  spool directory `/var/spool/postfix`.
+- The directory will be accessible only to the user `dkimpy-milter` runs as and
+  the group Postfix runs as (see: `postfix_group` in the defaults).
+- `dkimpy-milter` will establish a socket named `dkimpy-milter.sock` in the
+  newly created subdirectory.
+- The socket will have the permissions `0777` to allow the Postfix user to
+  read/write to it.
+
+After these changes the role will restart `dkimpy-milter` and the socket will be
+established in the new directory:
+
+[source,terminal]
+----
+# ls -la /var/spool/postfix/dkimpy-milter/
+total 8
+drwx--x---  2 dkimpy-milter postfix       4096 Jan  2 20:46 .
+drwxr-xr-x 17 root          root          4096 Jan  2 20:19 ..
+srwxrwxrwx  1 dkimpy-milter dkimpy-milter    0 Jan  2 20:46 dkimpy-milter.sock
+----
+
+Now configure Postfix to use `dkimpy-milter` as a Milter service. Assuming all
+messages entering the Postfix mail system via the Postfix `smtpd` SMTP server
+add the following option to the `smtpd_milters` parameter in Postfix `main.cf`
+configuration file:
+
+[source,conf]
+----
+smtpd_milters =
+    unix:dkimpy-milter/dkimpy-milter.sock
+----
+
+After a `systemctl reload postfix` integration has been completed and
+`dkimpy-milter` will begin to sign messages.
+
+[NOTE]
+====
+Specifying a relative path as shown above will work in a non-chroot and in a
+chrooted Postfix environment.
+====
+
+// vim: set tw=80:

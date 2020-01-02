@@ -77,6 +77,16 @@
     mode: "0640"
   notify: restart dkimpy-milter
 
+- name: Create "{{ dkimpy_postfix_socket_directory }}"
+  file:
+    path: "{{ dkimpy_postfix_socket_directory }}"
+    state: directory
+    owner: "{{ dkimpy_user }}"
+    group: "{{ postfix_group }}"
+    mode: "0710"
+  when: dkimpy_socket == "local_postfix"
+  notify: restart dkimpy-milter
+
 - name: Enable dkimpy-milter service
   service:
     name: dkimpy-milter
