@@ -299,9 +299,64 @@ local_postfix::
 === Postfix MTA
 
 Configuring `dkimpy-milter` to work with Postfix requires to modify
-`dkimpy-milter` and Postfix configuration. Set `dkimpy_socket: local_postfix` in
-the hosts vars file to prepare `dkimpy-milter` for integration with the Postfix
-MTA.
+`dkimpy-milter` and Postfix configuration. The following sections explain how to
+either use a TCP socket or use a local UNIX socket to connect `dkimpy-milter`
+and Postfix with each other.
+
+
+==== Integrate using a TCP socket
+
+Set `dkimpy_socket: inet` in the hosts vars file to let `dkimpy-milter` listen
+on a TCP socket for communication with Postfix:
+
+[source,yaml]
+----
+dkimpy_socket: local_postfix
+----
+
+Setting this option causes this ansible role to change how `dkimpy-milter`
+integrates as follows:
+
+- It listens on TCP address `127.0.0.1`.
+- It listens on port `8892`.
+
+If you want to adapt these setting to suit your needs override the following
+options in your hosts vars file:
+
+dkimpy_socket_tcp_port (default: 8892)::
+    Setting this option will cause `dkimpy-milter` to listen on this port.
+dkimpy_socket_tcp_type (default: ipv4)::
+    By default `dkimpy-milter` expects an IPv4 address. To let it listen on an
+    IPv6 address, specify `ipv6` as `dkimpy_socket_tcp_type`.
+dkimpy_socket_tcp_address (default: 127.0.0.1)::
+    Setting this option will cause `dkimpy-milter` to listen on this address.
+
+[CAUTION]
+====
+Do not expose the socket to a public network unless you have other means in
+place that will restrict access.
+====
+
+Once you've rolled out the changes you can start configuring Postfix. Assuming
+all messages entering the Postfix mail system via the Postfix `smtpd` SMTP
+server and you haven't modified the port or address `dkimpy-milter` listens on
+add the following option to the `smtpd_milters` parameter in Postfix `main.cf`
+configuration file:
+
+[source,conf]
+----
+smtpd_milters =
+    inet:127.0.0.1:8892
+----
+
+After a `systemctl reload postfix` integration has been completed and
+`dkimpy-milter` will begin to sign messages.
+
+
+==== Integrate using a local UNIX socket
+
+Set `dkimpy_socket: local_postfix` in the hosts vars file to prepare
+`dkimpy-milter` for integration with the Postfix MTA.
 
 [source,yaml]
 ----
