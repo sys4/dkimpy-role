@@ -1,5 +1,5 @@
 # {{ ansible_managed }}
-# senderdomain    identifier
+# senderdomain    keyname
 
 {% for key, value in rsa_keys.items() %}
 {% if value.enabled == True %}

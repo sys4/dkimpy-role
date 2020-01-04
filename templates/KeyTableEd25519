@@ -1,5 +1,5 @@
 # {{ ansible_managed }}
-# identifier senderdomain:selector:/path/to/signing.key
+# keyname    senderdomain:selector:/path/to/signing.key
 
 {% for key, value in ed25519_keys.items() %}
 {% if value.enabled == True %}
