@@ -1,8 +1,23 @@
+- name: Install libmilter-dev
+  apt:
+    name: libmilter-dev
+    state: present
+
 - name: Install dkimpy-milter
   pip:
-    name: dkimpy-milter
+    name: "{{ packages }}"
+  vars:
+    packages:
+      - pymilter
+      - dkimpy-milter
 
-- name: Create user "{{ dkimpy_user }}"
+- name: Ensure group "{{ dkimpy_group }}" exists
+  group:
+    name: "{{ dkimpy_group }}"
+    system: yes
+    state: present
+
+- name: Ensure user "{{ dkimpy_user }}" exists
   user:
     name: "{{ dkimpy_user }}"
     group: "{{ dkimpy_group }}"
@@ -16,7 +31,7 @@
 - name: Install dkimpy-milter config file
   template:
     src: dkimpy-milter.conf
-    dest: /usr/local/etc/dkimpy-milter.conf
+    dest: /usr/local/etc/dkimpy-milter/dkimpy-milter.conf
     owner: "{{ dkimpy_user }}"
     group: "{{ dkimpy_group }}"
     mode: "0640"
@@ -32,22 +47,22 @@
 
 # Create any rsa key specified – enabled or disabled
 - name: Create rsa type DKIM keys
-  command: "dknewkey --ktype rsa {{ dkimpy_key_store }}/{{ rsa_key_file_name }}"
+  command:
+    cmd: "dknewkey --ktype rsa {{ dkimpy_key_store }}/{{ rsa_key_file_name }}"
+    creates: "{{ dkimpy_key_store }}/{{ rsa_key_file_name }}.key"
   become: yes
   become_user: "{{ dkimpy_user }}"
   no_log: true
-  args:
-    creates: "{{ dkimpy_key_store }}/{{ rsa_key_file_name }}"
   loop: "{{ lookup('dict', rsa_keys) }}"
 
 # Create any ed25519 key specified – enabled or disabled
 - name: Create ed25519 type DKIM keys
-  command: "dknewkey --ktype ed25519 {{ dkimpy_key_store }}/{{ ed25519_key_file_name }}"
+  command:
+    cmd: "dknewkey --ktype ed25519 {{ dkimpy_key_store }}/{{ ed25519_key_file_name }}"
+    creates: "{{ dkimpy_key_store }}/{{ ed25519_key_file_name }}.key"
   become: yes
   become_user: "{{ dkimpy_user }}"
   no_log: true
-  args:
-    creates: "{{ dkimpy_key_store }}/{{ ed25519_key_file_name }}"
   loop: "{{ lookup('dict', ed25519_keys) }}"
 
 - name: Deploy rsa KeyTable
@@ -88,8 +103,9 @@
   notify: restart dkimpy-milter
 
 - name: Enable dkimpy-milter service
-  service:
+  systemd:
     name: dkimpy-milter
+    daemon_reload: yes
     enabled: yes
     state: started
 
