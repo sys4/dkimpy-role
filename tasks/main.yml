@@ -48,8 +48,8 @@
 # Create any rsa key specified – enabled or disabled
 - name: Create rsa type DKIM keys
   command:
-    cmd: "dknewkey --ktype rsa {{ dkimpy_key_store }}/{{ rsa_key_file_name }}"
-    creates: "{{ dkimpy_key_store }}/{{ rsa_key_file_name }}.key"
+    cmd: "dknewkey --ktype rsa {{ dkimpy_key_store }}/{{ item.value.selector }}-rsa.{{ item.key }}"
+    creates: "{{ dkimpy_key_store }}/{{ item.value.selector }}-rsa.{{ item.key }}.key"
   become: yes
   become_user: "{{ dkimpy_user }}"
   no_log: true
@@ -58,8 +58,8 @@
 # Create any ed25519 key specified – enabled or disabled
 - name: Create ed25519 type DKIM keys
   command:
-    cmd: "dknewkey --ktype ed25519 {{ dkimpy_key_store }}/{{ ed25519_key_file_name }}"
-    creates: "{{ dkimpy_key_store }}/{{ ed25519_key_file_name }}.key"
+    cmd: "dknewkey --ktype ed25519 {{ dkimpy_key_store }}/{{ item.value.selector }}-ed25519.{{ item.key }}"
+    creates: "{{ dkimpy_key_store }}/{{ item.value.selector }}-ed25519.{{ item.key }}.key"
   become: yes
   become_user: "{{ dkimpy_user }}"
   no_log: true

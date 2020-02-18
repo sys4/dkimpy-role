@@ -1,12 +1,22 @@
 # {{ ansible_managed }}
 # senderdomain    keyname
-
 {% for key, value in rsa_keys.items() %}
 {% if value.enabled == True %}
 {% if value.sender | regex_search('@') %}
 {{ value.sender }}    {{ key }}
 {% else %}
 *@{{ value.sender }}    {{ key }}
+{% endif %}
+{% endif %}
+{% endfor %}
+
+# Disabled keys
+{% for key, value in rsa_keys.items() %}
+{% if value.enabled == False %}
+{% if value.sender | regex_search('@') %}
+# {{ value.sender }}    {{ key }}
+{% else %}
+# *@{{ value.sender }}    {{ key }}
 {% endif %}
 {% endif %}
 {% endfor %}

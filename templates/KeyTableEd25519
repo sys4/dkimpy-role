@@ -1,9 +1,15 @@
 # {{ ansible_managed }}
 # keyname    senderdomain:selector:/path/to/signing.key
-
 {% for key, value in ed25519_keys.items() %}
 {% if value.enabled == True %}
-{{ key }}    {{ value.sender | regex_replace('^.*@(.*)$','\\1') }}:{{ value.selector }}:{{ dkimpy_key_store }}/{{ value.selector }}.ed25519.{{ value.sender }}.key
+{{ key }}    {{ value.sender | regex_replace('^.*@(.*)$','\\1') }}:{{ value.selector }}-ed25519-{{ key | hash('md5') | truncate(10, True, '') }}:{{ dkimpy_key_store }}/{{ value.selector }}-ed25519.{{ value.sender }}.key
+{% endif %}
+{% endfor %}
+
+# Disabled keys
+{% for key, value in ed25519_keys.items() %}
+{% if value.enabled == False %}
+# {{ key }}    {{ value.sender | regex_replace('^.*@(.*)$','\\1') }}:{{ value.selector }}-ed25519-{{ key | hash('md5') | truncate(10, True, '') }}:{{ dkimpy_key_store }}/{{ value.selector }}-ed25519.{{ value.sender }}.key
 {% endif %}
 {% endfor %}
 

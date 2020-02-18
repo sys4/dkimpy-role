@@ -2,8 +2,6 @@ dkimpy_user: dkimpy-milter
 dkimpy_group: dkimpy-milter
 dkimpy_conf_dir: /usr/local/etc/dkim
 dkimpy_key_store: "{{ dkimpy_conf_dir }}/keys"
-rsa_key_file_name: "{{ item.value.selector }}.rsa.{{ item.value.sender }}.key"
-ed25519_key_file_name: "{{ item.value.selector }}.ed25519.{{ item.value.sender }}.key"
 dkimpy_mode: sv
 dkimpy_canonicalization: relaxed/simple
 dkimpy_key_table: "{{ dkimpy_conf_dir }}/KeyTable"
