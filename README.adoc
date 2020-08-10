@@ -279,7 +279,7 @@ By default `dkimpy-milter` establishes a local UNIX socket located at
 
 [source,yaml]
 ----
-dkimpy_socket: local_postfix
+dkimpy_socket: ...
 ----
 
 Available options for `dkimpy_socket` are:
@@ -311,7 +311,7 @@ on a TCP socket for communication with Postfix:
 
 [source,yaml]
 ----
-dkimpy_socket: local_postfix
+dkimpy_socket: inet
 ----
 
 Setting this option causes this ansible role to change how `dkimpy-milter`
